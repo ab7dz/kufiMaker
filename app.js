@@ -829,11 +829,174 @@ function setTool(t){
   tool=t;
   document.querySelectorAll('.tool-btn[data-tool]').forEach(b=>b.classList.toggle('active',b.dataset.tool===t));
   vp.classList.toggle('pan-mode',t==='pan');
-  $id('statusTool').textContent={draw:'رسم',erase:'ممحاة',fill:'ملء',pan:'تحريك'}[t]||t;
+  vp.classList.toggle('select-mode',t==='select');
+  $id('statusTool').textContent={draw:'رسم',erase:'ممحاة',fill:'ملء',pan:'تحريك',select:'تحديد'}[t]||t;
+  // إخفاء/إظهار شريط التحديد
+  const selBar=$id('selectionBar');
+  if(selBar) selBar.style.display=(t==='select'?'flex':'none');
+  if(t!=='select') clearSelection();
 }
 document.querySelectorAll('.tool-btn[data-tool]').forEach(b=>b.addEventListener('click',()=>setTool(b.dataset.tool)));
 
-/* ══════════ GRID CONTROLS ══════════ */
+/* ══════════════════════════════════════════════
+   SELECTION TOOL — تحديد منطقة ونقلها
+══════════════════════════════════════════════ */
+let selState='idle'; // idle | drawing | selected | moving
+let selStart={x:-1,y:-1}, selEnd={x:-1,y:-1};
+let selMoveStart={mx:0,my:0,ox:0,oy:0};
+let selOverlay=null;
+
+function getSelRect(){
+  const x1=Math.min(selStart.x,selEnd.x), y1=Math.min(selStart.y,selEnd.y);
+  const x2=Math.max(selStart.x,selEnd.x), y2=Math.max(selStart.y,selEnd.y);
+  return{x1,y1,x2,y2,w:x2-x1+1,h:y2-y1+1};
+}
+
+function drawSelOverlay(){
+  if(selOverlay) selOverlay.remove();
+  if(selStart.x<0) return;
+  const r=getSelRect();
+  const total=cellSz+gapSz;
+  const gcRect=gc.getBoundingClientRect();
+  const vpRect=vp.getBoundingClientRect();
+  const pad=20;
+  const offL=gcRect.left-vpRect.left+vp.scrollLeft+pad*zoom;
+  const offT=gcRect.top-vpRect.top+vp.scrollTop+pad*zoom;
+  selOverlay=document.createElement('div');
+  selOverlay.id='selOverlay';
+  selOverlay.style.cssText=`
+    position:absolute;
+    left:${offL+r.x1*total*zoom}px;
+    top:${offT+r.y1*total*zoom}px;
+    width:${r.w*total*zoom}px;
+    height:${r.h*total*zoom}px;
+    border:2px dashed rgba(66,165,245,0.9);
+    background:rgba(66,165,245,0.08);
+    box-sizing:border-box;
+    pointer-events:none;
+    z-index:15;
+  `;
+  // مقابض زوايا
+  ['tl','tr','bl','br'].forEach(pos=>{
+    const h=document.createElement('div');
+    h.className='sel-handle';
+    h.dataset.pos=pos;
+    h.style.cssText=`
+      position:absolute;width:10px;height:10px;border-radius:50%;
+      background:#42A5F5;border:2px solid #fff;z-index:16;pointer-events:none;
+      ${pos.includes('t')?'top:-5px;':'bottom:-5px;'}
+      ${pos.includes('l')?'left:-5px;':'right:-5px;'}
+    `;
+    selOverlay.appendChild(h);
+  });
+  vp.appendChild(selOverlay);
+}
+
+function clearSelection(){
+  selStart={x:-1,y:-1}; selEnd={x:-1,y:-1};
+  selState='idle';
+  if(selOverlay){selOverlay.remove();selOverlay=null;}
+  // إخفاء شريط عمليات التحديد
+  const sb=$id('selActionBar'); if(sb) sb.style.display='none';
+}
+
+function moveSelection(dx,dy){
+  if(selStart.x<0) return;
+  const r=getSelRect();
+  const nx1=r.x1+dx, ny1=r.y1+dy;
+  const nx2=r.x2+dx, ny2=r.y2+dy;
+  if(nx1<0||ny1<0||nx2>=cols||ny2>=rows) return;
+  saveState();
+  // جمع بيانات المنطقة المحددة
+  const cells=[], gapsH=[], gapsV=[], gapsD=[];
+  for(let y=r.y1;y<=r.y2;y++) for(let x=r.x1;x<=r.x2;x++){
+    cells.push({x,y,v:grid[y][x],c:cellColors[`${x},${y}`]});
+    if(x<cols-1) gapsV.push({x,y,v:gapV[y]?.[x]||0,c:gapVColors[`${x},${y}`]});
+    if(y<rows-1) gapsH.push({x,y,v:gapH[y]?.[x]||0,c:gapHColors[`${x},${y}`]});
+    if(x<cols-1&&y<rows-1) gapsD.push({x,y,v:gapD[y]?.[x]||0,c:gapDColors[`${x},${y}`]});
+  }
+  // امسح المنطقة القديمة
+  for(let y=r.y1;y<=r.y2;y++) for(let x=r.x1;x<=r.x2;x++){
+    grid[y][x]=0; delete cellColors[`${x},${y}`];
+    if(gapV[y]&&x<cols-1){gapV[y][x]=0;delete gapVColors[`${x},${y}`];}
+    if(y<rows-1&&gapH[y]){gapH[y][x]=0;delete gapHColors[`${x},${y}`];}
+    if(y<rows-1&&x<cols-1&&gapD[y]){gapD[y][x]=0;delete gapDColors[`${x},${y}`];}
+  }
+  // ارسم في الموضع الجديد
+  cells.forEach(({x,y,v,c})=>{
+    const nx=x+dx,ny=y+dy;
+    grid[ny][nx]=v;
+    if(c&&v) cellColors[`${nx},${ny}`]=c; else if(v) cellColors[`${nx},${ny}`]=drawColor;
+  });
+  gapsV.forEach(({x,y,v,c})=>{
+    const nx=x+dx,ny=y+dy;
+    if(gapV[ny]&&nx<cols-1){gapV[ny][nx]=v;if(c&&v)gapVColors[`${nx},${ny}`]=c;}
+  });
+  gapsH.forEach(({x,y,v,c})=>{
+    const nx=x+dx,ny=y+dy;
+    if(ny<rows-1&&gapH[ny]){gapH[ny][nx]=v;if(c&&v)gapHColors[`${nx},${ny}`]=c;}
+  });
+  gapsD.forEach(({x,y,v,c})=>{
+    const nx=x+dx,ny=y+dy;
+    if(ny<rows-1&&nx<cols-1&&gapD[ny]){gapD[ny][nx]=v;if(c&&v)gapDColors[`${nx},${ny}`]=c;}
+  });
+  // حرّك نطاق التحديد
+  selStart={x:selStart.x+dx,y:selStart.y+dy};
+  selEnd={x:selEnd.x+dx,y:selEnd.y+dy};
+  renderGrid();
+  drawSelOverlay();
+}
+
+// أحداث التحديد في vp
+vp.addEventListener('pointerdown',e=>{
+  if(tool!=='select') return;
+  if(e.target.closest?.('#selActionBar')) return;
+  const cell=getCell(e); if(!cell) return;
+  if(selState==='selected'){
+    const r=getSelRect();
+    if(cell.x>=r.x1&&cell.x<=r.x2&&cell.y>=r.y1&&cell.y<=r.y2){
+      // بدء النقل
+      selState='moving';
+      selMoveStart={mx:cell.x,my:cell.y};
+      vp.setPointerCapture(e.pointerId);
+      e.stopPropagation(); return;
+    }
+  }
+  // بدء رسم تحديد جديد
+  clearSelection();
+  selState='drawing';
+  selStart={x:cell.x,y:cell.y}; selEnd={x:cell.x,y:cell.y};
+  drawSelOverlay();
+  vp.setPointerCapture(e.pointerId);
+  e.stopPropagation();
+},{capture:true});
+
+vp.addEventListener('pointermove',e=>{
+  if(tool!=='select') return;
+  const cell=getCell(e); if(!cell) return;
+  if(selState==='drawing'){
+    selEnd={x:cell.x,y:cell.y};
+    drawSelOverlay(); e.stopPropagation();
+  } else if(selState==='moving'){
+    const dx=cell.x-selMoveStart.mx, dy=cell.y-selMoveStart.my;
+    if(dx||dy){ moveSelection(dx,dy); selMoveStart={mx:cell.x,my:cell.y}; }
+    e.stopPropagation();
+  }
+},{capture:true});
+
+vp.addEventListener('pointerup',e=>{
+  if(tool!=='select') return;
+  if(selState==='drawing'){
+    selState='selected';
+    drawSelOverlay();
+    // أظهر شريط العمليات
+    const sb=$id('selActionBar');
+    if(sb) sb.style.display='flex';
+  } else if(selState==='moving'){
+    selState='selected';
+  }
+  try{vp.releasePointerCapture(e.pointerId);}catch(er){}
+},{capture:true});
 $id('cellSizeR').addEventListener('input',e=>{
   cellSz=+e.target.value; $id('cellSizeVal').textContent=cellSz;
   document.documentElement.style.setProperty('--cell-size',cellSz+'px');
@@ -1686,6 +1849,29 @@ document.querySelectorAll('[data-sheet]').forEach(b=>{
 /* ══════════ SESSION STORAGE ══════════ */
 const SESSION_KEY='kufi_session';
 const SETTINGS_KEY='kufi_settings';
+const BG_IMG_KEY='kufi_bgimg'; // مفتاح مستقل للصورة في IndexedDB
+
+/* ── حفظ/تحميل صورة الخلفية في IndexedDB (تتجاوز حد localStorage) ── */
+function saveBgImgToDB(dataUrl){
+  if(!lettersDB) return;
+  try{
+    const tx=lettersDB.transaction('letters','readwrite');
+    const store=tx.objectStore('letters');
+    if(dataUrl) store.put({ch:BG_IMG_KEY, data:dataUrl});
+    else store.delete(BG_IMG_KEY);
+  }catch(e){}
+}
+function loadBgImgFromDB(){
+  return new Promise(res=>{
+    if(!lettersDB){res(null);return;}
+    try{
+      const tx=lettersDB.transaction('letters','readonly');
+      const req=tx.objectStore('letters').get(BG_IMG_KEY);
+      req.onsuccess=()=>res(req.result?.data||null);
+      req.onerror=()=>res(null);
+    }catch(e){res(null);}
+  });
+}
 
 function saveSession(){
   try{
@@ -1699,16 +1885,25 @@ function saveSession(){
       gapHColors:{...gapHColors},
       gapVColors:{...gapVColors},
       gapDColors:{...gapDColors},
-      drawColor,bgProps:{...bgProps},
-      bgImg: bgImg ? bgImg.substring(0,100)+'...' : null, // don't store full image in session
+      drawColor,
+      bgProps:{...bgProps},
       bgVisible,
+      hasBgImg: !!bgImg,  // مؤشر فقط — الصورة نفسها في IndexedDB
       ts:Date.now()
     };
     localStorage.setItem(SESSION_KEY, JSON.stringify(data));
-  }catch(e){/* quota exceeded */}
+    // حفظ الصورة منفصلاً في IndexedDB
+    saveBgImgToDB(bgImg);
+  }catch(e){
+    // في حالة امتلاء localStorage احفظ بدون ألوان
+    try{
+      const slim={cols,rows,grid:grid.map(r=>[...r]),ts:Date.now()};
+      localStorage.setItem(SESSION_KEY, JSON.stringify(slim));
+    }catch(e2){}
+  }
 }
 
-function loadSession(data){
+async function loadSession(data){
   initGrid(data.cols||24, data.rows||24);
   grid=data.grid||grid;
   if(data.gapH)gapH=data.gapH;
@@ -1718,31 +1913,54 @@ function loadSession(data){
   if(data.gapHColors)gapHColors=data.gapHColors;
   if(data.gapVColors)gapVColors=data.gapVColors;
   if(data.gapDColors)gapDColors=data.gapDColors;
-  if(data.drawColor){drawColor=data.drawColor;$id('fillColor').value=drawColor;$id('quickColor').value=drawColor;$id('colorPreview').style.background=drawColor; if(typeof buildSwatches==='function')buildSwatches();}
+  if(data.drawColor){drawColor=data.drawColor;$id('fillColor').value=drawColor;$id('quickColor').value=drawColor;$id('colorPreview').style.background=drawColor;if(typeof buildSwatches==='function')buildSwatches();}
   if(data.bgProps)Object.assign(bgProps,data.bgProps);
   bgVisible=data.bgVisible!==undefined?data.bgVisible:true;
+  // استرجاع الصورة من IndexedDB
+  if(data.hasBgImg){
+    const img=await loadBgImgFromDB();
+    if(img){bgImg=img;applyBg();}
+  }
   renderGrid();
 }
 
 function saveSettings(){
-  const s={cellSz,gapSz,cellRad,drawColor};
-  localStorage.setItem(SETTINGS_KEY,JSON.stringify(s));
+  // تخزين جميع الإعدادات الكاملة
+  try{
+    const s={
+      cellSz,gapSz,cellRad,drawColor,
+      axisEvery,showAxis,axisColor,showRulers,
+      zoom,
+      canvasBg: getComputedStyle(vp).backgroundColor||'#0A0C10'
+    };
+    localStorage.setItem(SETTINGS_KEY,JSON.stringify(s));
+  }catch(e){}
 }
 function loadSettings(){
   try{
     const s=JSON.parse(localStorage.getItem(SETTINGS_KEY)||'{}');
-    if(s.drawColor){drawColor=s.drawColor;$id('fillColor').value=drawColor;$id('quickColor').value=drawColor;$id('colorPreview').style.background=drawColor; if(typeof buildSwatches==='function')buildSwatches();}
+    if(s.drawColor){drawColor=s.drawColor;$id('fillColor').value=drawColor;$id('quickColor').value=drawColor;$id('colorPreview').style.background=drawColor;if(typeof buildSwatches==='function')buildSwatches();}
     if(s.cellSz){cellSz=s.cellSz;$id('cellSizeR').value=cellSz;$id('cellSizeVal').textContent=cellSz;document.documentElement.style.setProperty('--cell-size',cellSz+'px');}
     if(s.gapSz){gapSz=s.gapSz;$id('gapSizeR').value=gapSz;$id('gapSizeVal').textContent=gapSz;document.documentElement.style.setProperty('--gap',gapSz+'px');}
     if(s.cellRad){cellRad=s.cellRad;$id('cellRadR').value=cellRad;$id('cellRadVal').textContent=cellRad;}
+    if(s.axisEvery){axisEvery=s.axisEvery;$id('axisEveryR').value=axisEvery;$id('axisEveryVal').textContent=axisEvery;}
+    if(s.showAxis!==undefined){showAxis=s.showAxis;const cb=$id('showAxis');if(cb)cb.checked=showAxis;}
+    if(s.axisColor){axisColor=s.axisColor;const ai=$id('axisColor');if(ai)ai.value=axisColor;}
+    if(s.showRulers){showRulers=s.showRulers;const sr=$id('showRulers');if(sr)sr.checked=showRulers;}
+    if(s.zoom){zoom=s.zoom;}
+    if(s.canvasBg){vp.style.background=s.canvasBg;}
   }catch(e){}
 }
 
-// Auto-save session every 30s and on grid changes
+// حفظ فوري عند الإغلاق/التنقل
+window.addEventListener('pagehide', saveSession);
+window.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='hidden') saveSession(); });
+
+// Auto-save on grid changes
 let sessionTimer=null;
 function scheduleSessionSave(){
   clearTimeout(sessionTimer);
-  sessionTimer=setTimeout(saveSession, 2000);
+  sessionTimer=setTimeout(saveSession, 1500);
 }
 
 /* ══════════ WELCOME SCREEN ══════════ */
@@ -1817,9 +2035,10 @@ function initWelcome(){
 
 function enterApp(){
   $id('welcomeScreen').classList.add('hidden');
-  // Save settings whenever sliders change
-  ['cellSizeR','gapSizeR','cellRadR','fillColor'].forEach(id=>{
+  // حفظ الإعدادات عند كل تغيير
+  ['cellSizeR','gapSizeR','cellRadR','fillColor','axisEveryR','axisColor','showAxis','showRulers','canvasBgColor'].forEach(id=>{
     const el=$id(id); if(el) el.addEventListener('change',saveSettings);
+    if(el && el.type==='range') el.addEventListener('input',saveSettings);
   });
   scheduleSessionSave();
 }
@@ -1857,48 +2076,78 @@ $id('btnReset').addEventListener('click',()=>showConfirm('إعادة تهيئة 
 
 /* ══════════ EXPORT ══════════ */
 function exportCanvas(withBg){
+  // ── حساب حدود الرسمة (bounding box) ──
+  let minX=cols,maxX=-1,minY=rows,maxY=-1;
+  grid.forEach((row,y)=>row.forEach((v,x)=>{
+    if(!v) return;
+    if(x<minX)minX=x; if(x>maxX)maxX=x;
+    if(y<minY)minY=y; if(y>maxY)maxY=y;
+  }));
+  // شمل عناصر الفجوة في الحدود
+  for(let gy=0;gy<rows-1;gy++) for(let gx=0;gx<cols;gx++){
+    if(!gapH[gy][gx]) continue;
+    if(gx<minX)minX=gx; if(gx>maxX)maxX=gx;
+    if(gy<minY)minY=gy; if(gy+1>maxY)maxY=gy+1;
+  }
+  for(let gy=0;gy<rows;gy++) for(let gx=0;gx<cols-1;gx++){
+    if(!gapV[gy][gx]) continue;
+    if(gx<minX)minX=gx; if(gx+1>maxX)maxX=gx+1;
+    if(gy<minY)minY=gy; if(gy>maxY)maxY=gy;
+  }
+  // إذا لا يوجد شيء — صدّر الشبكة كاملة
+  if(maxX<0){minX=0;maxX=cols-1;minY=0;maxY=rows-1;}
+
+  const total=cellSz+gapSz, pad=12;
+  const drawCols=maxX-minX+1, drawRows=maxY-minY+1;
   const canvas=document.createElement('canvas');
-  const total=cellSz+gapSz, pad=10;
-  canvas.width=cols*total+pad*2; canvas.height=rows*total+pad*2;
+  canvas.width=drawCols*total+pad*2;
+  canvas.height=drawRows*total+pad*2;
   const ctx=canvas.getContext('2d');
-  // Background
+
+  // خلفية
   ctx.fillStyle=getComputedStyle(vp).backgroundColor||'#0A0C10';
   ctx.fillRect(0,0,canvas.width,canvas.height);
-  // BG image
+
+  // offset للتحويل من إحداثيات الشبكة الكاملة إلى canvas المقصوص
+  const ox = pad - minX*total;
+  const oy = pad - minY*total;
+
+  // صورة مرجعية (اختيارية)
   if(withBg&&bgImg&&bgVisible){
     const im=new Image(); im.src=bgImg;
     ctx.save();
     ctx.globalAlpha=bgProps.opacity;
     const bm={multiply:'multiply',screen:'screen',overlay:'overlay',lighten:'lighten',darken:'darken',normal:'source-over'};
     ctx.globalCompositeOperation=bm[bgProps.blend]||'source-over';
-    const cx=pad+bgProps.x+bgProps.w/(2*zoom), cy=pad+bgProps.y+bgProps.h/(2*zoom);
+    const cx=ox+bgProps.x+bgProps.w/(2*zoom), cy=oy+bgProps.y+bgProps.h/(2*zoom);
     ctx.translate(cx,cy); ctx.rotate(bgProps.rotate*Math.PI/180);
     try{ctx.drawImage(im,-bgProps.w/(2*zoom),-bgProps.h/(2*zoom),bgProps.w/zoom,bgProps.h/zoom);}catch(er){}
     ctx.restore();
   }
+
   // Gap H
   for(let gy=0;gy<rows-1;gy++) for(let gx=0;gx<cols;gx++){
     if(!gapH[gy][gx]) continue;
     ctx.fillStyle=gapHColors[`${gx},${gy}`]||drawColor;
-    ctx.fillRect(pad+gx*total, pad+(gy+1)*total-gapSz, cellSz, gapSz);
+    ctx.fillRect(ox+gx*total, oy+(gy+1)*total-gapSz, cellSz, gapSz);
   }
   // Gap V
   for(let gy=0;gy<rows;gy++) for(let gx=0;gx<cols-1;gx++){
     if(!gapV[gy][gx]) continue;
     ctx.fillStyle=gapVColors[`${gx},${gy}`]||drawColor;
-    ctx.fillRect(pad+(gx+1)*total-gapSz, pad+gy*total, gapSz, cellSz);
+    ctx.fillRect(ox+(gx+1)*total-gapSz, oy+gy*total, gapSz, cellSz);
   }
   // Gap D
   for(let gy=0;gy<rows-1;gy++) for(let gx=0;gx<cols-1;gx++){
     if(!gapD[gy][gx]) continue;
     ctx.fillStyle=gapDColors[`${gx},${gy}`]||drawColor;
-    ctx.fillRect(pad+(gx+1)*total-gapSz, pad+(gy+1)*total-gapSz, gapSz, gapSz);
+    ctx.fillRect(ox+(gx+1)*total-gapSz, oy+(gy+1)*total-gapSz, gapSz, gapSz);
   }
-  // Cells with smart radius
+  // الخلايا مع Smart Radius
   grid.forEach((row,y)=>row.forEach((v,x)=>{
     if(!v) return;
     ctx.fillStyle=cellColors[`${x},${y}`]||drawColor;
-    const rx=pad+x*total, ry=pad+y*total;
+    const rx=ox+x*total, ry=oy+y*total;
     if(cellRad>0){
       const radStr=computeCellRadius(x,y).replace(/px/g,'').split(' ').map(Number);
       const[rtl,rtr,rbr,rbl]=[radStr[0],radStr[1],radStr[2],radStr[3]];
@@ -1977,6 +2226,36 @@ window.addEventListener('keydown',e=>{
     if(e.key==='e'||e.key==='E')setTool('erase');
     if(e.key==='f'||e.key==='F')setTool('fill');
     if(e.key==='h'||e.key==='H')setTool('pan');
+    if(e.key==='s'||e.key==='S')setTool('select');
+    // حركة التحديد بلوحة المفاتيح
+    if(tool==='select'&&selState==='selected'){
+      if(e.key==='ArrowUp'){e.preventDefault();moveSelection(0,-1);}
+      if(e.key==='ArrowDown'){e.preventDefault();moveSelection(0,1);}
+      if(e.key==='ArrowLeft'){e.preventDefault();moveSelection(-1,0);}
+      if(e.key==='ArrowRight'){e.preventDefault();moveSelection(1,0);}
+      if(e.key==='Escape') clearSelection();
+    }
+  }
+});
+
+/* ── أزرار شريط التحديد ── */
+document.addEventListener('click',e=>{
+  const id=e.target.id||e.target.closest('button')?.id;
+  if(id==='selMoveUp')    moveSelection(0,-1);
+  if(id==='selMoveDown')  moveSelection(0,1);
+  if(id==='selMoveLeft')  moveSelection(-1,0);
+  if(id==='selMoveRight') moveSelection(1,0);
+  if(id==='selDeselect')  clearSelection();
+  if(id==='selClear'){
+    if(selStart.x<0) return;
+    const r=getSelRect(); saveState();
+    for(let y=r.y1;y<=r.y2;y++) for(let x=r.x1;x<=r.x2;x++){
+      grid[y][x]=0; delete cellColors[`${x},${y}`];
+      if(gapV[y]&&x<cols-1){gapV[y][x]=0;delete gapVColors[`${x},${y}`];}
+      if(y<rows-1&&gapH[y]){gapH[y][x]=0;delete gapHColors[`${x},${y}`];}
+      if(y<rows-1&&x<cols-1&&gapD[y]){gapD[y][x]=0;delete gapDColors[`${x},${y}`];}
+    }
+    renderGrid(); clearSelection();
   }
 });
 
