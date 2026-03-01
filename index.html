@@ -226,15 +226,18 @@
   </div>
 
   <!-- Right panel REMOVED — content moved to bottom sheet via JS -->
-  <!-- شريط عمليات التحديد — يظهر عند تفعيل أداة التحديد -->
-  <div id="selActionBar" style="display:none;position:absolute;bottom:16px;left:50%;transform:translateX(-50%);z-index:50;background:var(--surface);border:1px solid var(--border);border-radius:24px;padding:6px 12px;gap:8px;align-items:center;box-shadow:0 4px 20px rgba(0,0,0,0.4);">
-    <button class="s-btn" id="selMoveUp" title="أعلى" style="width:32px;height:32px;padding:0;font-size:16px;">↑</button>
-    <button class="s-btn" id="selMoveDown" title="أسفل" style="width:32px;height:32px;padding:0;font-size:16px;">↓</button>
-    <button class="s-btn" id="selMoveLeft" title="يسار" style="width:32px;height:32px;padding:0;font-size:16px;">←</button>
-    <button class="s-btn" id="selMoveRight" title="يمين" style="width:32px;height:32px;padding:0;font-size:16px;">→</button>
-    <div style="width:1px;height:20px;background:var(--border);"></div>
-    <button class="s-btn danger" id="selClear" title="مسح المحتوى" style="font-size:11px;padding:4px 8px;">مسح</button>
-    <button class="s-btn" id="selDeselect" title="إلغاء التحديد" style="font-size:11px;padding:4px 8px;">✕</button>
+
+  <!-- شريط التحديد — يظهر فقط مع أداة التحديد -->
+  <div id="selActionBar" style="display:none;position:absolute;bottom:16px;left:50%;transform:translateX(-50%);z-index:50;
+    background:var(--surface);border:1px solid var(--border);border-radius:24px;padding:5px 10px;gap:6px;
+    align-items:center;box-shadow:0 4px 20px rgba(0,0,0,0.5);white-space:nowrap;">
+    <button class="sel-bar-btn" id="selMoveUp" title="أعلى">↑</button>
+    <button class="sel-bar-btn" id="selMoveDown" title="أسفل">↓</button>
+    <button class="sel-bar-btn" id="selMoveLeft" title="يسار">←</button>
+    <button class="sel-bar-btn" id="selMoveRight" title="يمين">→</button>
+    <div style="width:1px;height:18px;background:var(--border);margin:0 2px;"></div>
+    <button class="sel-bar-btn danger" id="selClear" title="مسح المحتوى">مسح</button>
+    <button class="sel-bar-btn" id="selDeselect" title="إلغاء">✕</button>
   </div>
   <!-- Hidden container holding all tab pane HTML -->
   <div id="tabPanesStore" style="display:none">
