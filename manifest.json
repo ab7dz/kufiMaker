@@ -3,7 +3,7 @@
   "name": "kufiMaker — محرر الخط الكوفي المربع",
   "short_name": "kufiMaker",
   "description": "محرر مجاني للخط الكوفي المربع • Square Kufic Script Editor • تصميم فني • بدون إنترنت بعد التثبيت",
-  "start_url": "./",
+  "start_url": "./?utm_source=pwa",
   "scope": "./",
   "display": "standalone",
   "display_override": ["standalone","fullscreen","minimal-ui","browser","window-controls-overlay"],
