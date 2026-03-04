@@ -455,20 +455,42 @@
       
       <!-- Legal & FAQ buttons -->
       <div style="display:flex;gap:8px;margin:8px 4px 0;flex-wrap:wrap;">
-        <button class="s-btn" onclick="openSheet('privacy')" style="flex:1;font-size:12px;min-width:80px;">🔒 الخصوصية</button>
-        <button class="s-btn" onclick="openSheet('terms')"   style="flex:1;font-size:12px;min-width:80px;">📋 الشروط</button>
-        <button class="s-btn" onclick="openSheet('faq')"     style="flex:1;font-size:12px;min-width:80px;">❓ الأسئلة</button>
+        <button class="s-btn" onclick="openSheet('privacy')" style="flex:1;font-size:12px;min-width:80px;">🕶️ الخصوصية</button>
+        <button class="s-btn" onclick="openSheet('terms')"   style="flex:1;font-size:12px;min-width:80px;">📃 الشروط</button>
+        <button class="s-btn" onclick="openSheet('faq')"     style="flex:1;font-size:12px;min-width:80px;">⁉️ الأسئلة</button>
       </div>
 
       <!-- Developer -->
-      <div style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--surface2);border-radius:var(--r);border:1px solid var(--border);margin:8px 4px 0;">
-        <div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">
-           <img src="https://images.icon-icons.com/259/PNG/128/ic_account_circle_128_28129.png" alt="kufiMaker" style="width:40px;height:40px;"/>
-        </div>
-          <div style="font-size:14px;font-weight:700;">ab7dz</div>
-          <div style="font-size:11px;color:var(--muted);">️المطور حسناوي / CL46</div>
-          <div><a style="font-size:12px;color:var(--accent2);font-weight:400;" href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="ddb5bcaebca4b2a89dbab0bcb4b1f3beb2b0"><span class="__cf_email__" data-cfemail="b5ddd4c6d4ccdac0f5d2d8d4dcd99bd6dad8">[email&#160;protected]</span></a></div>
-      </div>
+ <div style="display:flex;flex-direction:column;gap:8px;padding:12px 14px;background:var(--surface2);border-radius:var(--r);border:1px solid var(--border);margin:8px 4px 0;">
+  
+  <!-- المطور البشري -->
+  <div style="display:flex;align-items:center;gap:12px;">
+    <div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">
+      <img src="https://images.icon-icons.com/259/PNG/128/ic_account_circle_128_28129.png" alt="ab7dz" style="width:40px;height:40px;border-radius:50%;"/>
+    </div>
+    <div>
+      <div style="font-size:14px;font-weight:700;">ab7dz</div>
+      <div style="font-size:11px;color:var(--muted);">المطور · الفكرة والتصميم</div>
+      <a style="font-size:11px;color:var(--accent2);" href="mailto:hasayou@gmail.com">fattouma@gal.dz</a>
+    </div>
+  </div>
+
+  <!-- فاصل -->
+  <div style="height:1px;background:var(--border);margin:2px 0;"></div>
+
+  <!-- Claude -->
+  <div style="display:flex;align-items:center;gap:12px;">
+    <div style="width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,#7C3AED,#A855F7);display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:20px;">
+      🤖
+    </div>
+    <div>
+      <div style="font-size:14px;font-weight:700;">Claude Sonnet 4.6</div>
+      <div style="font-size:11px;color:var(--muted);">بواسطة Anthropic · البرمجة والتنفيذ</div>
+      <a style="font-size:11px;color:var(--accent2);" href="https://claude.ai" target="_blank">claude.ai</a>
+    </div>
+  </div>
+
+</div>
 
       <!-- Links -->
       <div style="display:flex;flex-direction:column;gap:6px;margin:8px 4px 0;">
@@ -483,10 +505,10 @@
           <svg style="opacity:.4" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
         </a>
       </div>
-
+      
       <!-- Version -->
       <div style="text-align:center;padding:16px 0 8px;font-size:11px;color:var(--muted);">
-        kufiMaker v1 &nbsp;·&nbsp; MIT License &nbsp;·&nbsp; 2026
+           kufiMaker v1 &nbsp;·&nbsp; CC BY-NC-ND 4.0 &nbsp;·&nbsp; 2026
       </div>
     
      </div>
