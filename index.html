@@ -217,7 +217,11 @@
         </svg>
       </button>
       <div class="tool-sep"></div>
-      <!-- Color button: shows current color, click opens dropdown -->
+      <!-- زر تفعيل/تعطيل سحب الصورة — يظهر فقط عند وجود صورة -->
+      <button class="tool-btn" id="btnBgDragToggle" data-tip="تفعيل/تعطيل سحب الصورة" style="display:none;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 12h6M12 9v6" opacity=".5"/><circle cx="7" cy="7" r="1.5" fill="currentColor" stroke="none"/><circle cx="17" cy="7" r="1.5" fill="currentColor" stroke="none"/><circle cx="7" cy="17" r="1.5" fill="currentColor" stroke="none"/><circle cx="17" cy="17" r="1.5" fill="currentColor" stroke="none"/></svg>
+      </button>
+      <div class="tool-sep"></div>
       <div id="colorDropWrap" style="position:relative;">
         <div id="colorDropBtn" data-tip="اختر لوناً"
           style="width:32px;height:32px;border-radius:9px;border:2px solid rgba(255,255,255,0.25);overflow:hidden;cursor:pointer;flex-shrink:0;position:relative;">
@@ -392,6 +396,7 @@
         <div style="display:flex;gap:5px;padding:6px 8px;border-top:1px solid var(--border);background:var(--surface3);">
           <button class="s-btn" id="bgToggle" style="flex:1;font-size:11px;">إخفاء</button>
           <button class="s-btn" id="bgReset" style="flex:1;font-size:11px;">مركز</button>
+          <button class="s-btn accent" id="bgCropBtn" style="flex:1;font-size:11px;">✂️ قص</button>
           <button class="s-btn danger" id="bgRemove" style="flex:1;font-size:11px;">إزالة</button>
         </div>
       </div>
@@ -461,7 +466,7 @@
       </div>
 
       <!-- Developer -->
- <div style="display:flex;flex-direction:column;gap:8px;padding:12px 14px;background:var(--surface2);border-radius:var(--r);border:1px solid var(--border);margin:8px 4px 0;">
+      <div style="display:flex;flex-direction:column;gap:8px;padding:12px 14px;background:var(--surface2);border-radius:var(--r);border:1px solid var(--border);margin:8px 4px 0;">
   
   <!-- المطور البشري -->
   <div style="display:flex;align-items:center;gap:12px;">
@@ -471,7 +476,7 @@
     <div>
       <div style="font-size:14px;font-weight:700;">ab7dz</div>
       <div style="font-size:11px;color:var(--muted);">المطور · الفكرة والتصميم</div>
-      <a style="font-size:11px;color:var(--accent2);" href="mailto:hasayou@gmail.com">fattouma@gal.dz</a>
+      <a style="font-size:11px;color:var(--accent2);" href="/cdn-cgi/l/email-protection#660e0715071f091326010b070f0a4805090b"><span class="__cf_email__" data-cfemail="781e190c0c170d1519381f1914561c02">[email&#160;protected]</span></a>
     </div>
   </div>
 
@@ -534,12 +539,20 @@
         <div style="font-size:16px;font-weight:800;margin-bottom:12px;">📋 الشروط والأحكام</div>
         <div style="background:var(--surface2);border-radius:var(--r);padding:14px 16px;border:1px solid var(--border);font-size:12px;color:var(--muted);line-height:2;">
           <b style="color:var(--text);">الاستخدام</b><br/>
-          يُتاح للاستخدام الشخصي والتجاري مجاناً بدون قيود.<br/><br/>
+          يُتاح للاستخدام الشخصي والغير التجاري مجاناً بدون قيود.<br/><br/>
           <b style="color:var(--text);">الملكية الفكرية</b><br/>
-          الكود مرخَّص بـ MIT. الرسومات التي تنشئها ملكك الكامل.<br/><br/>
+          الكود مرخَّص بـ CC BY-NC-ND 4.0. الرسومات التي تنشئها ملكك الكامل.<br/><br/>
           <b style="color:var(--text);">إخلاء المسؤولية</b><br/>
           يُقدَّم التطبيق كما هو. المطور غير مسؤول عن أي خسارة في البيانات.<br/><br/>
           <!-- أضف ملاحظاتك هنا -->
+          <b style="color:var(--text);">الترخيص</b></br>
+          أنت مرخص لك بموجب هذه الاتفاقية باستخدام هذا التطبيق للأغراض
+الشخصية غير التجارية فقط
+</br>
+للحصول على إذن تجاري أو أي استفسار:
+  → افتح Issue على GitHub
+  → https://github.com/ab7dz/kufiMaker
+  </br>
         </div>
       </div>
     </div>
