@@ -637,3 +637,7 @@ input[type=color]{width:100%;height:100%;border:none;cursor:pointer;padding:0;}
   border-radius: 3px;
   box-sizing: border-box;
 }
+
+/* BG DRAG TOGGLE */
+#btnBgDragToggle.active{background:rgba(66,165,245,0.18);color:#42A5F5;box-shadow:0 0 0 2px rgba(66,165,245,0.35);}
+#btnBgDragToggle.active svg{stroke:#42A5F5;}
