@@ -647,6 +647,7 @@ const SEL = (() => {
 
   return {
     get phase(){ return phase; },
+    _norm: norm,
     reset,
     nudge,
     commit: commitFrame,
@@ -671,9 +672,59 @@ const SEL = (() => {
     },
     onUp(e){
       try{vp.releasePointerCapture(e.pointerId);}catch(_){}
+      if(phase==='define') setTimeout(()=>updateSelIndicator?.(),0);
     }
   };
 })();
+
+/* ══════════ SEL HELPERS — مسح/إعادة تلوين المنطقة المحددة ══════════ */
+function selEraseRegion(){
+  if(SEL.phase!=='define') return;
+  const n=SEL._norm();
+  saveState();
+  for(let y=n.y1;y<=n.y2;y++) for(let x=n.x1;x<=n.x2;x++){
+    grid[y][x]=0; delete cellColors[`${x},${y}`];
+    const el=cellEl(x,y);
+    if(el){el.classList.remove('filled');el.style.background='';el.style.borderRadius=`${cellRad}px`;}
+    if(x<cols-1&&gapV[y]){gapV[y][x]=0;delete gapVColors[`${x},${y}`];}
+    if(y<rows-1&&gapH[y]){gapH[y][x]=0;delete gapHColors[`${x},${y}`];}
+    if(x<cols-1&&y<rows-1&&gapD[y]){gapD[y][x]=0;delete gapDColors[`${x},${y}`];}
+  }
+  refreshAllRadius(); renderGapElements(); updateStatus();
+  SEL.reset(); updateSelIndicator();
+}
+
+function selRecolorRegion(newColor){
+  if(SEL.phase!=='define') return;
+  const n=SEL._norm();
+  saveState();
+  for(let y=n.y1;y<=n.y2;y++) for(let x=n.x1;x<=n.x2;x++){
+    if(grid[y][x]){
+      cellColors[`${x},${y}`]=newColor;
+      const el=cellEl(x,y); if(el) el.style.background=newColor;
+    }
+    if(x<cols-1&&gapV[y]&&gapV[y][x]) gapVColors[`${x},${y}`]=newColor;
+    if(y<rows-1&&gapH[y]&&gapH[y][x]) gapHColors[`${x},${y}`]=newColor;
+    if(x<cols-1&&y<rows-1&&gapD[y]&&gapD[y][x]) gapDColors[`${x},${y}`]=newColor;
+  }
+  renderGapElements(); updateStatus();
+}
+
+function updateSelIndicator(){
+  const hasSel = tool==='select' && SEL.phase==='define';
+  const selBtn = document.querySelector('.tool-btn[data-tool="select"]');
+  if(selBtn) selBtn.classList.toggle('sel-active', hasSel);
+  const eraseBtn = document.querySelector('.tool-btn[data-tool="erase"]');
+  if(eraseBtn) eraseBtn.classList.toggle('sel-action', hasSel);
+}
+
+/* اعتراض زر الممحاة عند وجود تحديد */
+document.querySelector('.tool-btn[data-tool="erase"]')?.addEventListener('click', e=>{
+  if(tool==='select' && SEL.phase==='define'){
+    e.stopImmediatePropagation();
+    selEraseRegion();
+  }
+},{capture:true});
 
 /* ══════════ POINTER EVENTS ══════════ */
 vp.addEventListener('pointerdown',e=>{
@@ -789,13 +840,20 @@ function applyBg(){
   bgDragEnable ? buildBgFrame() : buildBgStatic();
 }
 
-/* ── bgCropCSS: يحوّل bgProps.crop إلى background-position/size ──
-   crop={x,y,w,h} بنسب 0→1 من الصورة الأصلية               */
+/* ── bgCropCSS: يحوّل bgProps.crop إلى background CSS صحيح ──
+   background-position % تُحسب من المساحة الزائدة (img_size - container)
+   المعادلة: pos% = crop.x / (1 - crop.w) × 100                          */
 function bgCropCSS(){
-  const c=bgProps.crop||{x:0,y:0,w:1,h:1};
-  const sw=(100/c.w).toFixed(2), sh=(100/c.h).toFixed(2);
-  const px=(-(c.x/c.w)*100).toFixed(2), py=(-(c.y/c.h)*100).toFixed(2);
-  return `background-size:${sw}% ${sh}%;background-position:${px}% ${py}%;`;
+  const c = bgProps.crop || {x:0,y:0,w:1,h:1};
+  const cw = Math.min(1, Math.max(0.01, c.w));
+  const ch = Math.min(1, Math.max(0.01, c.h));
+  const cx = Math.min(1-cw, Math.max(0, c.x));
+  const cy = Math.min(1-ch, Math.max(0, c.y));
+  const sw = (100/cw).toFixed(4);
+  const sh = (100/ch).toFixed(4);
+  const px = cw >= 1 ? '0' : ((cx/(1-cw))*100).toFixed(4)+'%';
+  const py = ch >= 1 ? '0' : ((cy/(1-ch))*100).toFixed(4)+'%';
+  return `background-size:${sw}% ${sh}%;background-position:${px} ${py};`;
 }
 
 function buildBgStatic(){
@@ -856,7 +914,7 @@ function buildBgFrame(){
   settingsBtn.addEventListener('pointerdown', e=>e.stopPropagation());
   settingsBtn.addEventListener('click', e=>{
     e.stopPropagation();
-    openSheet('bg');
+    openSheet('tools');
     setTimeout(()=>{
       const ctrl=$id('bgControls');
       if(ctrl) ctrl.style.display='flex';
@@ -1126,6 +1184,8 @@ function setDrawColorFull(color){
   $id('quickColor').value = color;
   $id('colorPreview').style.background = color;
   syncSwatches();
+  // إذا كان هناك تحديد نشط → استبدل لون المنطقة
+  if(tool==='select' && SEL.phase==='define') selRecolorRegion(color);
 }
 
 function syncSwatches(){
@@ -1202,7 +1262,7 @@ function setTool(t){
   vp.classList.toggle('select-mode', t==='select');
   vp.classList.toggle('brush-mode',  t==='brush');
   $id('statusTool').textContent={draw:'رسم',erase:'ممحاة',fill:'ملء',pan:'تحريك',select:'تحديد',brush:'قلم متواصل'}[t]||t;
-  if(t!=='select') SEL.reset();
+  if(t!=='select'){ SEL.reset(); updateSelIndicator(); }
   if(t!=='brush')  BRUSH.reset();
   const mp=$id('brushModePanel');
   if(mp) mp.style.display=(t==='brush')?'flex':'none';
@@ -1460,13 +1520,15 @@ let DEFAULT_LETTERS = {};
 
 function openDB(){
   return new Promise((res,rej)=>{
-    const req = indexedDB.open('KufiLetters', 2);
+    const req = indexedDB.open('KufiLetters', 3);
     req.onupgradeneeded = e => {
       const db = e.target.result;
       if(!db.objectStoreNames.contains('letters'))
         db.createObjectStore('letters', {keyPath:'ch'});
       if(!db.objectStoreNames.contains('meta'))
         db.createObjectStore('meta', {keyPath:'k'});
+      if(!db.objectStoreNames.contains('saves'))
+        db.createObjectStore('saves', {keyPath:'id'});
     };
     req.onsuccess = e => { lettersDB = e.target.result; res(lettersDB); };
     req.onerror   = () => rej(req.error);
@@ -2215,7 +2277,7 @@ function openSheet(tabName){
   document.querySelectorAll('[data-sheet]').forEach(b=>b.classList.toggle('sheet-active',b.dataset.sheet===tabName && b.tagName==='BUTTON'));
   bsOverlay.style.display='flex';
   bsOverlay.classList.add('open');
-  requestAnimationFrame(()=>{ requestAnimationFrame(()=>bsSheet.classList.add('open')); });
+  requestAnimationFrame(()=>{ requestAnimationFrame(()=>{ bsSheet.classList.add('open'); if(tabName==='saves') buildSavesList(); }); });
   sessionStorage.setItem('lastSheet', tabName);
 }
 
@@ -2603,12 +2665,109 @@ function loadKufiJSON(text){
     if(d.drawColor){drawColor=d.drawColor;$id('fillColor').value=drawColor;$id('quickColor').value=drawColor;$id('colorPreview').style.background=drawColor;if(typeof buildSwatches==='function')buildSwatches();}
     if(d.bgProps)Object.assign(bgProps,d.bgProps);
     if(!bgProps.crop)bgProps.crop={x:0,y:0,w:1,h:1};
-    if(d.bgImg){bgImg=d.bgImg;applyBg();const c=$id('bgControls');if(c)c.style.display='flex';}
+    bgVisible = d.bgVisible != null ? d.bgVisible : true;
+    if(d.bgImg){
+      bgImg=d.bgImg;
+      updateBgPreview(bgImg);
+      const c=$id('bgControls'); if(c) c.style.display='flex';
+      applyBg();
+    } else {
+      bgImg=null;
+      updateBgPreview(null);
+    }
     renderGrid();
+    scheduleSessionSave?.();
   }catch(err){
     showConfirm('الملف تالف أو غير صالح — تعذّر تحميله', null);
   }
 }
+
+/* ══════════ SAVES LIBRARY ══════════ */
+function dbSavesList(){
+  return new Promise(res=>{
+    if(!lettersDB){res([]);return;}
+    const tx=lettersDB.transaction('saves','readonly');
+    const req=tx.objectStore('saves').getAll();
+    req.onsuccess=()=>res((req.result||[]).sort((a,b)=>b.ts-a.ts));
+    req.onerror=()=>res([]);
+  });
+}
+function dbSavePut(rec){
+  return new Promise(res=>{
+    if(!lettersDB){res();return;}
+    const tx=lettersDB.transaction('saves','readwrite');
+    tx.objectStore('saves').put(rec);
+    tx.oncomplete=()=>res(); tx.onerror=()=>res();
+  });
+}
+function dbSaveDelete(id){
+  return new Promise(res=>{
+    if(!lettersDB){res();return;}
+    const tx=lettersDB.transaction('saves','readwrite');
+    tx.objectStore('saves').delete(id);
+    tx.oncomplete=()=>res(); tx.onerror=()=>res();
+  });
+}
+async function saveToLibrary(name){
+  const payload={cols,rows,grid,gapH,gapV,gapD,cellColors,gapHColors,gapVColors,gapDColors,drawColor,bgProps,bgImg,bgVisible,v:7};
+  const id=Date.now();
+  await dbSavePut({id, name:name||`رسم ${new Date().toLocaleDateString('ar')}`, ts:id, data:JSON.stringify(payload)});
+  if(typeof currentSheet!=='undefined'&&currentSheet==='saves') buildSavesList();
+}
+async function buildSavesList(){
+  const container=$id('savesListContainer'); if(!container) return;
+  const saves=await dbSavesList();
+  if(!saves.length){
+    container.innerHTML=`<div style="text-align:center;color:var(--muted);font-size:12px;padding:24px 0;line-height:2;">لا توجد ملفات محفوظة<br><span style="font-size:10px;">اضغط "+ حفظ الحالي" لحفظ رسمك</span></div>`;
+    return;
+  }
+  container.innerHTML='';
+  saves.forEach(rec=>{
+    const item=document.createElement('div');
+    item.style.cssText=`display:flex;align-items:center;gap:8px;padding:9px 10px;background:var(--surface2);border-radius:var(--rs);border:1px solid var(--border);margin-bottom:6px;`;
+    const icon=document.createElement('div');
+    icon.style.cssText=`width:34px;height:34px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:15px;flex-shrink:0;`;
+    icon.textContent='📄';
+    const info=document.createElement('div');
+    info.style.cssText=`flex:1;min-width:0;`;
+    const nameEl=document.createElement('div');
+    nameEl.style.cssText=`font-size:13px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;`;
+    nameEl.textContent=rec.name;
+    const dateEl=document.createElement('div');
+    dateEl.style.cssText=`font-size:10px;color:var(--muted);margin-top:2px;`;
+    dateEl.textContent=new Date(rec.ts).toLocaleString('ar');
+    info.appendChild(nameEl); info.appendChild(dateEl);
+    const btns=document.createElement('div');
+    btns.style.cssText=`display:flex;gap:3px;flex-shrink:0;`;
+    function mkB(txt,bg,fn){
+      const b=document.createElement('button');
+      b.textContent=txt;
+      b.style.cssText=`padding:5px 7px;border-radius:6px;border:none;cursor:pointer;font-size:12px;font-family:'Tajawal',sans-serif;background:${bg};color:#fff;`;
+      b.addEventListener('click',fn); return b;
+    }
+    btns.appendChild(mkB('فتح','var(--accent)',()=>{
+      showConfirm(`فتح "${rec.name}"؟ سيتم استبدال الرسم الحالي.`,()=>{ loadKufiJSON(rec.data); closeSheet(); });
+    }));
+    btns.appendChild(mkB('✏️','var(--surface3)',()=>{
+      const n=prompt('اسم جديد:',rec.name);
+      if(n&&n.trim()){rec.name=n.trim();dbSavePut(rec).then(()=>buildSavesList());}
+    }));
+    btns.appendChild(mkB('⬇️','var(--surface3)',()=>{
+      const a=document.createElement('a');
+      a.href=URL.createObjectURL(new Blob([rec.data],{type:'application/json'}));
+      a.download=`${rec.name.replace(/\s+/g,'_')}.json`; a.click();
+    }));
+    btns.appendChild(mkB('🗑','rgba(239,68,68,0.25)',()=>{
+      showConfirm(`حذف "${rec.name}"؟`,async()=>{await dbSaveDelete(rec.id);buildSavesList();});
+    }));
+    item.appendChild(icon); item.appendChild(info); item.appendChild(btns);
+    container.appendChild(item);
+  });
+}
+document.getElementById('btnSaveToLib')?.addEventListener('click',()=>{
+  const n=prompt('اسم الملف:',`رسم ${new Date().toLocaleDateString('ar')}`);
+  if(n!==null) saveToLibrary(n.trim()||`رسم ${new Date().toLocaleDateString('ar')}`);
+});
 
 /* ══════════ MODAL ══════════ */
 let _cb=null;
