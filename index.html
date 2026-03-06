@@ -101,13 +101,9 @@
     </button>
     <div style="width:1px;height:28px;background:var(--border);margin:0 4px;flex-shrink:0;"></div>
     <!-- Panel buttons right -->
-    <button class="tb-panel-btn" id="tbBg" data-tip="أدوات" data-sheet="bg">
+    <button class="tb-panel-btn" id="tbBg" data-tip="أدوات" data-sheet="tools">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
       <span>أدوات</span>
-    </button>
-    <button style="display:none;" class="tb-panel-btn" id="tbTools" data-tip="اعدادات" data-sheet="tools">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
-      <span>اعدادات</span>
     </button>
     <button class="tb-panel-btn" id="tbGrid" data-tip="الشبكة" data-sheet="grid">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
@@ -116,6 +112,10 @@
     <button class="tb-panel-btn" id="tbLetters" data-tip="الحروف" data-sheet="letters">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h16M6 20V4l6 8 6-8v16"/></svg>
       <span>حروف</span>
+    </button>
+    <button class="tb-panel-btn" id="tbSaves" data-tip="ملفاتي" data-sheet="saves">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+      <span>ملفاتي</span>
     </button>
   </div>
   <!-- Row 2: Action buttons -->
@@ -150,10 +150,10 @@
     <div class="bs-handle"></div>
     <div style="display:flex;align-items:center;padding:8px 16px 0;">
       <div class="bs-tabs" id="bsTabs" style="flex:1;padding:0;">
-        <div class="bs-tab active" data-sheet="tools">أدوات</div>
+        <div class="bs-tab" data-sheet="tools">الادوات</div>
         <div class="bs-tab" data-sheet="grid">الشبكة</div>
         <div class="bs-tab" data-sheet="letters">الحروف</div>
-        <div class="bs-tab" data-sheet="bg">الخلفية</div>
+        <div class="bs-tab" data-sheet="saves">ملفاتي</div>
         <div class="bs-tab" data-sheet="about">المطور</div>
         <div class="bs-tab" data-sheet="privacy">الخصوصية</div>
         <div class="bs-tab" data-sheet="terms">الشروط</div>
@@ -277,6 +277,18 @@
   <!-- Hidden container holding all tab pane HTML -->
   <div id="tabPanesStore" style="display:none">
 
+    <!-- SAVES -->
+    <div id="tab-saves" class="tab-pane">
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 4px 10px;">
+        <div style="font-size:14px;font-weight:800;">📁 ملفاتي المحفوظة</div>
+        <button class="s-btn accent" id="btnSaveToLib" style="font-size:12px;padding:6px 14px;white-space:nowrap;">+ حفظ الحالي</button>
+      </div>
+      <div id="savesListContainer" style="padding:0 2px;"></div>
+      <div style="padding:10px 4px 4px;border-top:1px solid var(--border);margin-top:6px;">
+        <div style="font-size:11px;color:var(--muted);line-height:1.8;">💡 الملفات محفوظة في المتصفح. يمكنك تنزيلها كـ JSON للنسخ الاحتياطي.</div>
+      </div>
+    </div>
+
     <!-- GRID -->
     <div id="tab-grid" class="tab-pane">
       <div class="sec">حجم الشبكة</div>
@@ -338,11 +350,9 @@
       <div class="ctrl-row"><input type="checkbox" id="autoAdvance" checked style="width:15px;height:15px;"/><span class="ctrl-label">تقدم تلقائي يميناً</span></div>
     </div>
 
-    <!-- BACKGROUND -->
-    <div id="tab-bg" class="tab-pane">
+    <!-- TOOLS -->
+    <div id="tab-tools" class="tab-pane">
 
-         <!-- TOOLS -->
-    <div id="tab-tools-in" class="tab-pane-in">
       <div class="sec" style="margin-top:25px;margin-bottom:15px;font-size:13px;">الوان الرسم</div>
       <div class="ctrl-row">
         <div class="color-btn"><input type="color" id="fillColor" value="#F5A623"/></div>
@@ -371,7 +381,7 @@
         <div class="swatch" style="background:#FFFFFF" data-color="#FFFFFF"></div>
         <div class="swatch" style="background:#111827;border:1px solid #333" data-color="#111827"></div>
       </div>
-    </div>
+  
 
       <div class="sec" style="margin-top:25px;margin-bottom:15px;font-size:13px;">تصدير</div>
       <div style="display:flex;flex-direction:column;gap:5px;">
@@ -508,7 +518,7 @@
     <div>
       <div style="font-size:14px;font-weight:700;">ab7dz</div>
       <div style="font-size:11px;color:var(--muted);">بواسطة حسناوي (الجزائر) · الفكرة والتصميم</div>
-      <a style="font-size:11px;color:var(--accent2);" href="mailto:hasayou@gmail.com">fattouma@gal.dz</a>
+      <a style="font-size:11px;color:var(--accent2);" href="/cdn-cgi/l/email-protection#2c444d5f4d5543596c4b414d4540024f4341"><span class="__cf_email__" data-cfemail="23454257574c564e426344424f0d4759">[email&#160;protected]</span></a>
     </div>
   </div>
 
@@ -551,7 +561,7 @@
     
      </div>
 
-
+    <!-- PRIVACY -->
     <div id="tab-privacy" class="tab-pane">
       <div style="padding:16px 4px;">
         <div style="font-size:16px;font-weight:800;margin-bottom:12px;">🔒 سياسة الخصوصية</div>
@@ -566,7 +576,8 @@
         </div>
       </div>
     </div>
-
+    
+    <!-- TERMS -->
     <div id="tab-terms" class="tab-pane">
       <div style="padding:16px 4px;">
         <div style="font-size:16px;font-weight:800;margin-bottom:12px;">📋 الشروط والأحكام</div>
@@ -587,7 +598,8 @@
         </div>
       </div>
     </div>
-
+   
+    <!-- FAQ -->
     <div id="tab-faq" class="tab-pane">
       <div style="padding:16px 4px;">
         <div style="font-size:16px;font-weight:800;margin-bottom:12px;">❓ الأسئلة الشائعة</div>
